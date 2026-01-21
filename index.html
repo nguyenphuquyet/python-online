@@ -11,17 +11,16 @@
     <link rel="canonical" href="https://python.nguyenphuquyet126.x10.bz">
     <link rel='icon' type="image/x-icon" href='https://images.icon-icons.com/1508/PNG/512/python_104451.png'>
     <meta property="og:image" content="https://i.ibb.co/mCY28Dxr/Zp-Bxd-R5-Le-NNTx-Et-H-ZDIw-ODc5-ZDQt-Nm-Nl-NC00-Nj-Vm-LTg0-Zm-Qt-ZDBj-N2-Iz-YTEx-OTVl-oxylabs-images-05.webp">
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />  -->
 <title>Python REPL</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
 <style>
-html, body {
-  height: 100%;
-}
-textarea {
-  overflow: hidden;
+html, body { height: 100%; }
+textarea { overflow: hidden; }
+.theme-active {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
 }
 </style>
 </head>
@@ -139,6 +138,7 @@ const settingsBtn = document.getElementById("settingsBtn");
 const sidebar = document.getElementById("sidebar");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
 const closeSidebar = document.getElementById("closeSidebar");
+const themeButtons = document.querySelectorAll(".themeBtn");
 
 let pyodide;
 let history = [];
@@ -172,8 +172,7 @@ input.addEventListener("blur", () => {
 
 const themes = {
   hacker: {
-    bg: "bg-black",
-    text: "text-green-400",
+    body: "bg-black text-green-400",
     header: "bg-black border-green-700 text-green-500",
     inputBar: "bg-black border-green-700",
     prompt: "text-green-400",
@@ -181,8 +180,7 @@ const themes = {
     error: "text-red-500"
   },
   dark: {
-    bg: "bg-black",
-    text: "text-gray-100",
+    body: "bg-black text-gray-100",
     header: "bg-black border-gray-800 text-gray-400",
     inputBar: "bg-black border-gray-800",
     prompt: "text-blue-400",
@@ -190,8 +188,7 @@ const themes = {
     error: "text-red-400"
   },
   light: {
-    bg: "bg-gray-100",
-    text: "text-gray-900",
+    body: "bg-gray-100 text-gray-900",
     header: "bg-white border-gray-300 text-gray-600",
     inputBar: "bg-white border-gray-300",
     prompt: "text-blue-600",
@@ -199,8 +196,7 @@ const themes = {
     error: "text-red-600"
   },
   midnight: {
-    bg: "bg-slate-950",
-    text: "text-slate-100",
+    body: "bg-slate-950 text-slate-100",
     header: "bg-slate-950 border-slate-800 text-slate-400",
     inputBar: "bg-slate-950 border-slate-800",
     prompt: "text-cyan-400",
@@ -213,7 +209,7 @@ function applyTheme(name) {
   const t = themes[name];
   if (!t) return;
 
-  document.body.className = `h-[100dvh] w-screen m-0 overflow-hidden ${t.bg} ${t.text}`;
+  document.body.className = `h-[100dvh] w-screen m-0 overflow-hidden ${t.body}`;
   header.className = `flex items-center justify-between px-4 py-2 border-b text-sm shrink-0 ${t.header}`;
   inputBar.className = `border-t px-4 py-3 shrink-0 ${t.inputBar}`;
   promptEl.className = `${t.prompt} select-none leading-[1.5rem] pt-[2px]`;
@@ -222,6 +218,11 @@ function applyTheme(name) {
     if (el.dataset.type === "output") el.className = `output ${t.output} whitespace-pre-wrap break-words`;
     if (el.dataset.type === "error") el.className = `error ${t.error} whitespace-pre-wrap break-words`;
     if (el.dataset.type === "prompt") el.className = `prompt ${t.prompt} whitespace-pre-wrap break-words`;
+  });
+
+  // Highlight active button
+  themeButtons.forEach(btn => {
+    btn.classList.toggle("theme-active", btn.dataset.theme === name);
   });
 
   localStorage.setItem("theme", name);
@@ -290,18 +291,29 @@ input.addEventListener("keydown", async e => {
 
 /* ================= SIDEBAR ================= */
 
-settingsBtn.onclick = () => {
-  sidebar.classList.remove("translate-x-full");
-  sidebarOverlay.classList.remove("hidden");
-};
-
+settingsBtn.onclick = openSidebar;
 closeSidebar.onclick = closeSidebarFn;
 sidebarOverlay.onclick = closeSidebarFn;
+
+function openSidebar() {
+  sidebar.classList.remove("translate-x-full");
+  sidebarOverlay.classList.remove("hidden");
+}
 
 function closeSidebarFn() {
   sidebar.classList.add("translate-x-full");
   sidebarOverlay.classList.add("hidden");
 }
+
+/* ================= THEME BUTTON EVENTS ================= */
+
+themeButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const theme = btn.dataset.theme;
+    applyTheme(theme);
+    closeSidebarFn(); // auto đóng sidebar sau khi chọn
+  });
+});
 
 /* ================= INIT ================= */
 
@@ -312,10 +324,10 @@ async function start() {
   print("Python 3.11 (Pyodide)");
 }
 
-applyTheme(localStorage.getItem("theme") || "hacker");
+const savedTheme = localStorage.getItem("theme") || "hacker";
+applyTheme(savedTheme);
 start();
 </script>
 
 </body>
 </html>
-
