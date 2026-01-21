@@ -183,13 +183,7 @@ async function runCode() {
 
   setTimeout(focusInput, 0);
 }
-runBtn.onclick = () => {
-  input.blur(); // tắt bàn phím trước
-
-  setTimeout(() => {
-    runCode();
-  }, 0);
-};
+runBtn.onclick = runCode;
 
 /* ================= SIDEBAR ================= */
 settingsBtn.onclick = () => {
@@ -291,91 +285,5 @@ themeButtons.forEach(btn =>
 applyTheme(localStorage.getItem("theme") || "hacker");
 </script>
 
-  
-  <!-- ================= IN-APP BROWSER WARNING ================= -->
-<div id="inAppWarning"
-     class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
-  <div class="max-w-sm w-[90%] rounded-xl p-5 text-center bg-neutral-900 text-white">
-    <div class="text-lg font-semibold mb-2">⚠️ Trình duyệt không hỗ trợ</div>
-    <div class="text-sm text-neutral-300 mb-4">
-      Trang này không hoạt động đúng trong trình duyệt tích hợp
-      (Messenger / Facebook / Zalo…).
-      <br><br>
-      Vui lòng mở bằng trình duyệt ngoài để sử dụng đầy đủ.
-    </div>
-
-    <button id="openExternal"
-            class="w-full py-2 rounded-lg font-semibold bg-green-500 text-black active:scale-95 transition">
-      🌐 Mở bằng trình duyệt ngoài
-    </button>
-  </div>
-</div>
-  
-  <script>
-/* ================= IN-APP BROWSER DETECT ================= */
-(function () {
-  const ua = navigator.userAgent || navigator.vendor || window.opera;
-
-  const isInApp =
-    /FBAN|FBAV|Instagram|Messenger|Zalo|Line|TikTok|Twitter/i.test(ua);
-
-  if (!isInApp) return;
-
-  const warning = document.getElementById("inAppWarning");
-  const openBtn = document.getElementById("openExternal");
-
-  warning.classList.remove("hidden");
-
-  openBtn.onclick = () => {
-    const url = location.href;
-
-    // Android
-    if (/Android/i.test(ua)) {
-      window.location.href =
-        "intent://" +
-        url.replace(/^https?:\/\//, "") +
-        "#Intent;scheme=https;package=com.android.chrome;end";
-    } else {
-      // iOS & khác
-      window.open(url, "_blank");
-    }
-  };
-})();
-</script>
-  
-  <script>
-/* ================= MOBILE KEYBOARD FIX ================= */
-(function () {
-  if (!window.visualViewport) return;
-
-  const vv = window.visualViewport;
-
-  function adjustForKeyboard() {
-    const keyboardHeight =
-      window.innerHeight - vv.height - vv.offsetTop;
-
-    if (keyboardHeight > 80) {
-      // bàn phím đang mở
-      inputBar.style.transform =
-        `translateY(-${keyboardHeight}px)`;
-    } else {
-      // bàn phím đóng
-      inputBar.style.transform = "translateY(0)";
-    }
-  }
-
-  vv.addEventListener("resize", adjustForKeyboard);
-  vv.addEventListener("scroll", adjustForKeyboard);
-
-  input.addEventListener("focus", () => {
-    setTimeout(adjustForKeyboard, 50);
-  });
-
-  input.addEventListener("blur", () => {
-    inputBar.style.transform = "translateY(0)";
-  });
-})();
-</script>
-  
 </body>
 </html>
