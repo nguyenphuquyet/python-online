@@ -2,26 +2,31 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>NGUYENPHUQUYET - PYTHON ONLINE</title>
 
 <meta name="description" content="Chạy code python online không cần cài app">
-<meta property="og:title" content="NGUYENPHUQUYET - PYTHON ONLINE">
-<meta property="og:description" content="Chạy code python online không cần cài app">
-<meta property="og:image" content="https://i.ibb.co/mCY28Dxr/Zp-Bxd-R5-Le-NNTx-Et-H-ZDIw-ODc5-ZDQt-Nm-Nl-NC00-Nj-Vm-LTg0-Zm-Qt-ZDBj-N2-Iz-YTEx-OTVl-oxylabs-images-05.webp">
-
 <link rel="icon" href="https://images.icon-icons.com/1508/PNG/512/python_104451.png">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
 <style>
 html, body { height: 100%; }
 textarea { overflow: hidden; }
+
 .theme-active {
   outline: 2px solid #22c55e;
   outline-offset: 2px;
 }
+
 #overlay.hidden { pointer-events: none; }
+
+/* 🔑 quan trọng cho keyboard fix */
+#inputBar {
+  will-change: transform;
+}
 </style>
 </head>
 
@@ -59,7 +64,8 @@ textarea { overflow: hidden; }
 
 <!-- SIDEBAR -->
 <aside id="sidebar"
- class="fixed top-0 right-0 h-full w-72 translate-x-full transition-transform z-50 flex flex-col">
+ class="fixed top-0 right-0 h-full w-72 translate-x-full
+        transition-transform z-50 flex flex-col">
 
   <div id="sidebarHeader"
    class="flex items-center justify-between px-4 py-3 border-b text-sm">
@@ -67,7 +73,7 @@ textarea { overflow: hidden; }
     <button id="closeSidebar">✕</button>
   </div>
 
-  <div id="sidebarBody" class="p-4 space-y-4 text-sm">
+  <div class="p-4 space-y-4 text-sm">
     <div>
       <div class="mb-2 font-medium">Theme</div>
       <div class="grid grid-cols-2 gap-2">
@@ -84,9 +90,10 @@ textarea { overflow: hidden; }
   </div>
 </aside>
 
-<!-- IN APP WARNING -->
+<!-- IN-APP WARNING -->
 <div id="inAppWarning"
- class="fixed inset-0 z-[999] hidden bg-black/80 flex items-center justify-center px-4">
+ class="fixed inset-0 z-[999] hidden bg-black/80
+        flex items-center justify-center px-4">
   <div class="bg-black border border-red-500 rounded-lg p-4 max-w-sm w-full text-center">
     <div class="text-red-400 font-bold mb-2">⚠️ Trình duyệt không hỗ trợ</div>
     <div class="text-sm mb-4 text-gray-300">
@@ -116,18 +123,7 @@ const closeSidebar = document.getElementById("closeSidebar");
 const credit = document.getElementById("credit");
 const themeButtons = document.querySelectorAll(".themeBtn");
 
-/* ================= PYODIDE ================= */
-let pyodide;
-async function start() {
-  terminal.textContent = "Đang tải Python...";
-  pyodide = await loadPyodide();
-  pyodide.setStdout({ batched: s => s.trim() && printLine(s) });
-  pyodide.setStderr({ batched: s => s.trim() && printLine(s, "error") });
-  terminal.textContent = "";
-  printLine("Python 3.11 (Pyodide)");
-}
-start();
-
+/* ================= TERMINAL ================= */
 function printLine(text, type="output") {
   const div = document.createElement("div");
   div.className = type === "error" ? "text-red-500" : "";
@@ -136,28 +132,64 @@ function printLine(text, type="output") {
   terminal.scrollTop = terminal.scrollHeight;
 }
 
+/* ================= PYODIDE ================= */
+let pyodide;
+(async () => {
+  printLine("Đang tải Python...");
+  pyodide = await loadPyodide();
+  pyodide.setStdout({ batched: s => s.trim() && printLine(s) });
+  pyodide.setStderr({ batched: s => s.trim() && printLine(s, "error") });
+  terminal.innerHTML = "";
+  printLine("Python 3.11 (Pyodide)");
+})();
+
 /* ================= RUN ================= */
 runBtn.onclick = async () => {
-  if (!input.value.trim()) return;
-  printLine(">>> " + input.value);
+  const code = input.value;
+  if (!code.trim()) return;
+
+  printLine(">>> " + code);
+  input.value = "";
+  autoResize();
+
   try {
-    const r = await pyodide.runPythonAsync(input.value);
+    const r = await pyodide.runPythonAsync(code);
     if (r !== undefined) printLine(String(r));
-  } catch(e) {
+  } catch (e) {
     printLine(e.toString(), "error");
   }
-  input.value = "";
 };
 
-/* ================= AUTO RESIZE + KEYBOARD FIX ================= */
-input.addEventListener("input", () => {
+/* ================= AUTO RESIZE ================= */
+function autoResize() {
   input.style.height = "1.5rem";
   input.style.height = input.scrollHeight + "px";
-});
-input.addEventListener("focus", () => {
-  setTimeout(() => {
-    inputBar.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, 300);
+}
+input.addEventListener("input", autoResize);
+
+/* ================= 🔑 KEYBOARD FIX (FINAL) ================= */
+const vv = window.visualViewport;
+
+function adjustForKeyboard() {
+  if (!vv) return;
+  const keyboardHeight =
+    window.innerHeight - vv.height - vv.offsetTop;
+
+  if (keyboardHeight > 0) {
+    inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
+  } else {
+    inputBar.style.transform = "";
+  }
+}
+
+if (vv) {
+  vv.addEventListener("resize", adjustForKeyboard);
+  vv.addEventListener("scroll", adjustForKeyboard);
+}
+
+input.addEventListener("focus", adjustForKeyboard);
+input.addEventListener("blur", () => {
+  inputBar.style.transform = "";
 });
 
 /* ================= SIDEBAR ================= */
@@ -170,7 +202,7 @@ closeSidebar.onclick = overlay.onclick = () => {
   overlay.classList.add("hidden");
 };
 
-/* ================= THEMES (FIXED) ================= */
+/* ================= THEMES ================= */
 const themes = {
   hacker: {
     body: "bg-black text-green-400",
@@ -215,13 +247,18 @@ function applyTheme(name) {
   if (!t) return;
 
   document.body.className = `h-[100dvh] overflow-hidden ${t.body}`;
-  header.className = `flex items-center justify-between px-4 py-2 border-b text-sm font-mono ${t.border}`;
+  header.className =
+    `flex items-center justify-between px-4 py-2 border-b text-sm font-mono ${t.border}`;
   inputBar.className = `border-t px-4 py-3 ${t.border}`;
   promptEl.className = `${t.prompt} select-none`;
-  input.className = `flex-1 bg-transparent resize-none outline-none font-mono ${t.input}`;
-  runBtn.className = `h-[1.5rem] px-3 rounded font-semibold ${t.button}`;
-  sidebar.className = `fixed top-0 right-0 h-full w-72 translate-x-full transition-transform z-50 flex flex-col ${t.sidebar}`;
-  sidebarHeader.className = `flex items-center justify-between px-4 py-3 border-b text-sm ${t.border}`;
+  input.className =
+    `flex-1 bg-transparent resize-none outline-none font-mono ${t.input}`;
+  runBtn.className =
+    `h-[1.5rem] px-3 rounded font-semibold ${t.button}`;
+  sidebar.className =
+    `fixed top-0 right-0 h-full w-72 translate-x-full transition-transform z-50 flex flex-col ${t.sidebar}`;
+  sidebarHeader.className =
+    `flex items-center justify-between px-4 py-3 border-b text-sm ${t.border}`;
   credit.className = `text-xs border-t pt-3 ${t.border}`;
   overlay.className = `fixed inset-0 z-40 hidden ${t.overlay}`;
 
@@ -240,7 +277,8 @@ applyTheme(localStorage.getItem("theme") || "hacker");
 
 /* ================= IN-APP BROWSER ================= */
 function isInAppBrowser() {
-  return /FBAN|FBAV|Messenger|Instagram|Zalo|Line|TikTok/i.test(navigator.userAgent);
+  return /FBAN|FBAV|Messenger|Instagram|Zalo|Line|TikTok/i
+    .test(navigator.userAgent);
 }
 
 if (isInAppBrowser()) {
@@ -249,7 +287,8 @@ if (isInAppBrowser()) {
     const url = location.href.replace(/^https?:\/\//, "");
     if (/Android/i.test(navigator.userAgent)) {
       location.href =
-        "intent://" + url + "#Intent;scheme=https;package=com.android.chrome;end";
+        "intent://" + url +
+        "#Intent;scheme=https;package=com.android.chrome;end";
     } else {
       alert("Nhấn ⋯ → Mở bằng Safari");
     }
