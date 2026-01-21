@@ -337,5 +337,39 @@ applyTheme(localStorage.getItem("theme") || "hacker");
 })();
 </script>
   
+  <script>
+/* ================= MOBILE KEYBOARD FIX ================= */
+(function () {
+  if (!window.visualViewport) return;
+
+  const vv = window.visualViewport;
+
+  function adjustForKeyboard() {
+    const keyboardHeight =
+      window.innerHeight - vv.height - vv.offsetTop;
+
+    if (keyboardHeight > 80) {
+      // bàn phím đang mở
+      inputBar.style.transform =
+        `translateY(-${keyboardHeight}px)`;
+    } else {
+      // bàn phím đóng
+      inputBar.style.transform = "translateY(0)";
+    }
+  }
+
+  vv.addEventListener("resize", adjustForKeyboard);
+  vv.addEventListener("scroll", adjustForKeyboard);
+
+  input.addEventListener("focus", () => {
+    setTimeout(adjustForKeyboard, 50);
+  });
+
+  input.addEventListener("blur", () => {
+    inputBar.style.transform = "translateY(0)";
+  });
+})();
+</script>
+  
 </body>
 </html>
