@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <title>NGUYENPHUQUYET - CHẠY CODE PYTHON ONLINE | NGUYENPHUQUYET.CN</title>
+    <meta property="og:description" content="Chạy code python online không cần cài app" />
+    <meta name="description" content="Chạy code python online không cần cài app" />
+    <meta property="og:title" content="NGUYENPHUQUYET - PYTHON ONLINE" />
+    <meta name="keywords" content="nguyenphuquyet, nguyenphuquyet.cn, python online">
+    <link rel="canonical" href="https://python.nguyenphuquyet126.x10.bz">
+    <link rel='icon' type="image/x-icon" href='https://images.icon-icons.com/1508/PNG/512/python_104451.png'>
+    <meta property="og:image" content="https://i.ibb.co/mCY28Dxr/Zp-Bxd-R5-Le-NNTx-Et-H-ZDIw-ODc5-ZDQt-Nm-Nl-NC00-Nj-Vm-LTg0-Zm-Qt-ZDBj-N2-Iz-YTEx-OTVl-oxylabs-images-05.webp">
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />  -->
+<title>Python REPL</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+
+<style>
+html, body {
+  height: 100%;
+}
+textarea {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body class="h-[100dvh] w-screen m-0 overflow-hidden bg-black text-green-400">
+
+<div id="app" class="flex flex-col h-full w-full relative">
+
+  <!-- GLASS OVERLAY BLOCKER -->
+  <div id="inAppBlocker"
+       class="fixed inset-0 z-[9999] hidden backdrop-blur-lg bg-white/10 text-white flex flex-col items-center justify-center px-6 text-center">
+    <div class="text-xl mb-3 font-medium">⚠️ Trình duyệt không hỗ trợ</div>
+    <div class="text-sm opacity-80 mb-4">
+      Trang này không chạy đúng trong trình duyệt tích hợp (Messenger, Facebook, Zalo...).<br>
+      Vui lòng mở bằng Chrome, Safari hoặc trình duyệt hệ thống.
+    </div>
+    <button id="openExternalBtn"
+            class="px-4 py-2 rounded-xl bg-white/80 text-black font-medium hover:bg-white active:scale-95 transition shadow-lg">
+      🌐 Mở bằng trình duyệt
+    </button>
+  </div>
+
+  <!-- Header -->
+  <div id="header" class="flex items-center justify-between px-4 py-2 border-b border-green-700 bg-black text-green-500 text-sm shrink-0">
+    <div>Python 3 — Browser REPL</div>
+    <button id="settingsBtn" class="hover:text-green-300 transition">⚙️ Cài đặt</button>
+  </div>
+
+  <!-- Terminal -->
+  <div id="terminal" class="flex-1 overflow-y-auto font-mono text-base px-4 py-3 space-y-1"></div>
+
+  <!-- Input Bar -->
+  <div id="inputBar" class="border-t border-green-700 px-4 py-3 bg-black shrink-0">
+    <div class="flex items-start gap-2">
+      <span id="prompt" class="text-green-400 select-none leading-[1.5rem] pt-[2px]">>>> </span>
+      <textarea
+        id="input"
+        rows="1"
+        inputmode="text"
+        autocapitalize="off"
+        autocomplete="off"
+        autocorrect="off"
+        class="flex-1 bg-transparent resize-none outline-none border-none font-mono text-base leading-[1.5rem] pt-[2px]"
+        placeholder="Nhập Python..."
+      ></textarea>
+    </div>
+  </div>
+
+  <!-- Overlay -->
+  <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 hidden z-40"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 right-0 h-full w-72 bg-black border-l border-green-700 transform translate-x-full transition-transform duration-200 z-50 flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-green-700 text-sm text-green-400">
+      <div>⚙️ Cài đặt</div>
+      <button id="closeSidebar" class="hover:text-green-300">✕</button>
+    </div>
+
+    <div class="p-4 space-y-4 text-sm">
+
+      <div>
+        <div class="text-green-500 mb-2">Theme</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button data-theme="hacker" class="themeBtn px-3 py-2 rounded bg-black text-green-400 border border-green-500 hover:bg-green-900/20">Hacker</button>
+          <button data-theme="dark" class="themeBtn px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-white">Dark</button>
+          <button data-theme="light" class="themeBtn px-3 py-2 rounded bg-gray-200 text-black hover:bg-gray-300">Light</button>
+          <button data-theme="midnight" class="themeBtn px-3 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white">Midnight</button>
+        </div>
+      </div>
+
+      <div class="text-green-600 text-xs border-t border-green-800 pt-3">
+        Phát triển bởi Nguyễn Phú Quyết
+      </div>
+
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ================= BLOCK IN-APP BROWSERS ================= */
+
+function isInAppBrowser() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return /FBAN|FBAV|Instagram|Line|Twitter|Messenger|Snapchat|Zalo|TikTok/i.test(ua);
+}
+
+if (isInAppBrowser()) {
+  const blocker = document.getElementById("inAppBlocker");
+  blocker.classList.remove("hidden");
+
+  document.getElementById("openExternalBtn").onclick = () => {
+    const url = location.href;
+    if (/android/i.test(navigator.userAgent)) {
+      window.location.href =
+        "intent://" +
+        location.host +
+        location.pathname +
+        location.search +
+        "#Intent;scheme=https;package=com.android.chrome;end;";
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+}
+
+/* ================= NORMAL APP CODE ================= */
+
+const terminal = document.getElementById("terminal");
+const input = document.getElementById("input");
+const promptEl = document.getElementById("prompt");
+const header = document.getElementById("header");
+const inputBar = document.getElementById("inputBar");
+const settingsBtn = document.getElementById("settingsBtn");
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+const closeSidebar = document.getElementById("closeSidebar");
+
+let pyodide;
+let history = [];
+let historyIndex = -1;
+
+/* ================= MOBILE KEYBOARD FIX ================= */
+
+function updateKeyboardOffset() {
+  if (!window.visualViewport) return;
+  const keyboardHeight = window.innerHeight - visualViewport.height;
+  inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
+  terminal.style.paddingBottom = keyboardHeight + inputBar.offsetHeight + "px";
+}
+
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", updateKeyboardOffset);
+  visualViewport.addEventListener("scroll", updateKeyboardOffset);
+}
+
+input.addEventListener("focus", () => {
+  setTimeout(updateKeyboardOffset, 50);
+  setTimeout(() => terminal.scrollTop = terminal.scrollHeight, 80);
+});
+
+input.addEventListener("blur", () => {
+  inputBar.style.transform = "";
+  terminal.style.paddingBottom = "";
+});
+
+/* ================= THEMES ================= */
+
+const themes = {
+  hacker: {
+    bg: "bg-black",
+    text: "text-green-400",
+    header: "bg-black border-green-700 text-green-500",
+    inputBar: "bg-black border-green-700",
+    prompt: "text-green-400",
+    output: "text-green-400",
+    error: "text-red-500"
+  },
+  dark: {
+    bg: "bg-black",
+    text: "text-gray-100",
+    header: "bg-black border-gray-800 text-gray-400",
+    inputBar: "bg-black border-gray-800",
+    prompt: "text-blue-400",
+    output: "text-gray-100",
+    error: "text-red-400"
+  },
+  light: {
+    bg: "bg-gray-100",
+    text: "text-gray-900",
+    header: "bg-white border-gray-300 text-gray-600",
+    inputBar: "bg-white border-gray-300",
+    prompt: "text-blue-600",
+    output: "text-gray-900",
+    error: "text-red-600"
+  },
+  midnight: {
+    bg: "bg-slate-950",
+    text: "text-slate-100",
+    header: "bg-slate-950 border-slate-800 text-slate-400",
+    inputBar: "bg-slate-950 border-slate-800",
+    prompt: "text-cyan-400",
+    output: "text-slate-100",
+    error: "text-rose-400"
+  }
+};
+
+function applyTheme(name) {
+  const t = themes[name];
+  if (!t) return;
+
+  document.body.className = `h-[100dvh] w-screen m-0 overflow-hidden ${t.bg} ${t.text}`;
+  header.className = `flex items-center justify-between px-4 py-2 border-b text-sm shrink-0 ${t.header}`;
+  inputBar.className = `border-t px-4 py-3 shrink-0 ${t.inputBar}`;
+  promptEl.className = `${t.prompt} select-none leading-[1.5rem] pt-[2px]`;
+
+  terminal.querySelectorAll("[data-type]").forEach(el => {
+    if (el.dataset.type === "output") el.className = `output ${t.output} whitespace-pre-wrap break-words`;
+    if (el.dataset.type === "error") el.className = `error ${t.error} whitespace-pre-wrap break-words`;
+    if (el.dataset.type === "prompt") el.className = `prompt ${t.prompt} whitespace-pre-wrap break-words`;
+  });
+
+  localStorage.setItem("theme", name);
+}
+
+/* ================= TERMINAL ================= */
+
+function print(text, type="output") {
+  const div = document.createElement("div");
+  div.dataset.type = type;
+  div.className = `${type} whitespace-pre-wrap break-words`;
+  terminal.appendChild(div);
+  div.textContent = text;
+  applyTheme(localStorage.getItem("theme") || "hacker");
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function autoResize() {
+  input.style.height = "auto";
+  input.style.height = input.scrollHeight + "px";
+}
+
+input.addEventListener("input", autoResize);
+
+input.addEventListener("keydown", async e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    const code = input.value.trim();
+    if (!code) return;
+
+    history.push(code);
+    historyIndex = history.length;
+
+    print(">>> " + code, "prompt");
+    input.value = "";
+    autoResize();
+
+    try {
+      let result = await pyodide.runPythonAsync(code);
+      if (result !== undefined) print(String(result), "output");
+    } catch (err) {
+      print(err.toString(), "error");
+    }
+  }
+
+  if (e.key === "ArrowUp") {
+    if (historyIndex > 0) {
+      historyIndex--;
+      input.value = history[historyIndex];
+      autoResize();
+    }
+  }
+
+  if (e.key === "ArrowDown") {
+    if (historyIndex < history.length - 1) {
+      historyIndex++;
+      input.value = history[historyIndex];
+      autoResize();
+    } else {
+      historyIndex = history.length;
+      input.value = "";
+      autoResize();
+    }
+  }
+});
+
+/* ================= SIDEBAR ================= */
+
+settingsBtn.onclick = () => {
+  sidebar.classList.remove("translate-x-full");
+  sidebarOverlay.classList.remove("hidden");
+};
+
+closeSidebar.onclick = closeSidebarFn;
+sidebarOverlay.onclick = closeSidebarFn;
+
+function closeSidebarFn() {
+  sidebar.classList.add("translate-x-full");
+  sidebarOverlay.classList.add("hidden");
+}
+
+/* ================= INIT ================= */
+
+async function start() {
+  print("Đang tải Python...");
+  pyodide = await loadPyodide();
+  terminal.innerHTML = "";
+  print("Python 3.11 (Pyodide)");
+}
+
+applyTheme(localStorage.getItem("theme") || "hacker");
+start();
+</script>
+
+</body>
+</html>
+
