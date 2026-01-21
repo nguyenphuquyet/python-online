@@ -36,21 +36,6 @@ textarea { overflow: hidden; }
 
 <div class="flex flex-col h-full">
 
-  <!-- GLASS OVERLAY BLOCKER -->
-  <div id="inAppBlocker"
-       class="fixed inset-0 z-[9999] hidden backdrop-blur-lg bg-white/10 text-white flex flex-col items-center justify-center px-6 text-center">
-    <div class="text-xl mb-3 font-medium">⚠️ Trình duyệt không hỗ trợ</div>
-    <div class="text-sm opacity-80 mb-4">
-      Trang này không chạy đúng trong trình duyệt tích hợp (Messenger, Facebook, Zalo...).<br>
-      Vui lòng mở bằng Chrome, Safari hoặc trình duyệt hệ thống.
-    </div>
-    <button id="openExternalBtn"
-            class="px-4 py-2 rounded-xl bg-white/80 text-black font-medium hover:bg-white active:scale-95 transition shadow-lg">
-      🌐 Mở bằng trình duyệt
-    </button>
-  </div>
-
-
 <!-- ================= HEADER ================= -->
 <div id="header"
      class="flex items-center justify-between px-4 py-2
