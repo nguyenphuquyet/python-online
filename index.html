@@ -1,73 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, user-scalable=no,
-                 minimum-scale=1.0, maximum-scale=1.0" />
+        content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-  <title>NGUYENPHUQUYET - PYTHON ONLINE</title>
-
-  <meta name="description" content="Chạy code python online không cần cài app">
-  <link rel="icon" href="https://images.icon-icons.com/1508/PNG/512/python_104451.png">
+  <title>Python REPL — Pyodide</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
   <style>
     html, body { height: 100%; }
-    textarea { overflow: hidden; }
-    .theme-active {
-      outline: 2px solid #22c55e;
-      outline-offset: 2px;
+    textarea {
+      overflow: hidden;
+      -webkit-user-select: text;
+      user-select: text;
     }
   </style>
 </head>
 
-<body class="h-[100dvh] w-screen m-0 overflow-hidden bg-black text-green-400">
+<body class="h-[100dvh] bg-black text-green-400 overflow-hidden">
 
-<div id="app" class="flex flex-col h-full w-full">
+<div class="flex flex-col h-full">
 
   <!-- Header -->
-  <div id="header"
-       class="flex items-center justify-between px-4 py-2
-              border-b border-green-700 bg-black text-green-500 text-sm">
-    <div>Python 3 — Browser REPL</div>
+  <div class="px-4 py-2 border-b border-green-700
+              font-mono text-sm text-green-500">
+    Python 3.11 — Browser REPL
   </div>
 
   <!-- Terminal -->
   <div id="terminal"
-       class="flex-1 overflow-y-auto font-mono text-base px-4 py-3 space-y-1">
+       class="flex-1 overflow-y-auto px-4 py-3
+              font-mono text-base space-y-1">
   </div>
 
-  <!-- Input -->
-  <div id="inputBar"
-       class="border-t border-green-700 px-4 py-3 bg-black">
-    <div class="flex items-start gap-2">
-      <span id="prompt"
-            class="text-green-400 select-none leading-[1.5rem] pt-[2px]">
-        >>> 
+  <!-- Input Bar (CLICK LÀ FOCUS) -->
+  <div class="border-t border-green-700 px-4 py-3 bg-black"
+       onclick="focusInput()">
+    <div class="flex items-stretch gap-2">
+
+      <!-- Prompt -->
+      <span class="pt-[2px] font-mono select-none">
+        >>>
       </span>
+
+      <!-- Textarea -->
       <textarea
         id="input"
         rows="1"
         class="flex-1 bg-transparent resize-none outline-none
-               font-mono text-base leading-[1.5rem] pt-[2px]"
+               font-mono leading-[1.5rem] pt-[2px]"
         placeholder="Nhập Python..."></textarea>
+
+      <!-- Run Button (LUÔN Ở DƯỚI) -->
+      <button
+        id="runBtn"
+        class="self-end h-[1.5rem] px-3 rounded-md
+               bg-green-600 text-black text-sm font-semibold
+               hover:bg-green-500 active:scale-95 transition">
+        ▶
+      </button>
+
     </div>
   </div>
 
 </div>
 
 <script>
-/* ================= TERMINAL HELPERS ================= */
+/* ================= ELEMENTS ================= */
 
 const terminal = document.getElementById("terminal");
 const input = document.getElementById("input");
+const runBtn = document.getElementById("runBtn");
 
-function printLine(text, type="output") {
+/* ================= FOCUS FIX ================= */
+
+function focusInput() {
+  input.focus({ preventScroll: true });
+}
+
+/* ================= TERMINAL ================= */
+
+function printLine(text, type = "output") {
   const div = document.createElement("div");
-  div.dataset.type = type;
   div.className =
     type === "error"
       ? "text-red-500 whitespace-pre-wrap break-words"
@@ -77,87 +94,67 @@ function printLine(text, type="output") {
   terminal.scrollTop = terminal.scrollHeight;
 }
 
+/* ================= TEXTAREA AUTO RESIZE ================= */
+
 function autoResize() {
-  input.style.height = "auto";
-  input.style.height = input.scrollHeight + "px";
+  const el = input;
+  el.style.height = "1.5rem";
+  el.style.height = el.scrollHeight + "px";
 }
 
-/* ================= PYODIDE INIT ================= */
+/* ================= PYODIDE ================= */
 
 let pyodide;
-let history = [];
-let historyIndex = -1;
 
 async function start() {
   printLine("Đang tải Python...");
   pyodide = await loadPyodide();
 
-  // 🔑 FIX CHÍNH Ở ĐÂY — BẮT stdout / stderr
   pyodide.setStdout({
-    batched: (s) => {
-      if (s.trim()) printLine(s);
-    }
+    batched: s => s.trim() && printLine(s)
   });
-
   pyodide.setStderr({
-    batched: (s) => {
-      if (s.trim()) printLine(s, "error");
-    }
+    batched: s => s.trim() && printLine(s, "error")
   });
 
   terminal.innerHTML = "";
   printLine("Python 3.11 (Pyodide)");
+
+  // 🔑 focus ngay khi load (mobile-friendly)
+  setTimeout(focusInput, 300);
 }
 
 start();
 
-/* ================= INPUT HANDLING ================= */
+/* ================= RUN CODE ================= */
+
+async function runCode() {
+  const code = input.value;
+  if (!code.trim()) return;
+
+  printLine(">>> " + code);
+  input.value = "";
+  autoResize();
+
+  try {
+    const result = await pyodide.runPythonAsync(code);
+    if (result !== undefined) {
+      printLine(String(result));
+    }
+  } catch (err) {
+    printLine(err.toString(), "error");
+  }
+
+  // 🔑 giữ bàn phím mở
+  setTimeout(focusInput, 0);
+}
+
+/* ================= EVENTS ================= */
 
 input.addEventListener("input", autoResize);
 
-input.addEventListener("keydown", async (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    const code = input.value.trim();
-    if (!code) return;
-
-    history.push(code);
-    historyIndex = history.length;
-
-    printLine(">>> " + code);
-    input.value = "";
-    autoResize();
-
-    try {
-      const result = await pyodide.runPythonAsync(code);
-      if (result !== undefined) {
-        printLine(String(result));
-      }
-    } catch (err) {
-      printLine(err.toString(), "error");
-    }
-  }
-
-  if (e.key === "ArrowUp") {
-    if (historyIndex > 0) {
-      historyIndex--;
-      input.value = history[historyIndex];
-      autoResize();
-    }
-  }
-
-  if (e.key === "ArrowDown") {
-    if (historyIndex < history.length - 1) {
-      historyIndex++;
-      input.value = history[historyIndex];
-      autoResize();
-    } else {
-      historyIndex = history.length;
-      input.value = "";
-      autoResize();
-    }
-  }
-});
+// ▶ Run bằng nút
+runBtn.addEventListener("click", runCode);
 </script>
 
 </body>
