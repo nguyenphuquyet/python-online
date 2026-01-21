@@ -183,7 +183,13 @@ async function runCode() {
 
   setTimeout(focusInput, 0);
 }
-runBtn.onclick = runCode;
+runBtn.onclick = () => {
+  input.blur(); // tắt bàn phím trước
+
+  setTimeout(() => {
+    runCode();
+  }, 0);
+};
 
 /* ================= SIDEBAR ================= */
 settingsBtn.onclick = () => {
