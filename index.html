@@ -164,26 +164,56 @@ function scheduleScroll(smooth = false) {
 
 /* ================= PYTHON SYNTAX HIGHLIGHT ================= */
 function highlightPython(code) {
-  return code
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    // comments
-    .replace(/(#.*?$)/gm, '<span class="token-comment">$1</span>')
-    // strings
-    .replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\n]*"|'[^'\n]*')/g,
-      '<span class="token-string">$1</span>')
-    // numbers
-    .replace(/\b(\d+(\.\d+)?)\b/g, '<span class="token-number">$1</span>')
-    // keywords
-    .replace(/\b(import|from|as|def|return|if|elif|else|for|while|break|continue|try|except|finally|with|lambda|class|pass|yield|in|is|and|or|not|None|True|False|await|async)\b/g,
-      '<span class="token-keyword">$1</span>')
-    // builtins
-    .replace(/\b(print|len|range|input|int|float|str|list|dict|set|tuple|open|type|dir|help|max|min|sum|map|filter|zip|enumerate|abs|round)\b/g,
-      '<span class="token-builtin">$1</span>')
-    // function calls
-    .replace(/\b([a-zA-Z_]\w*)(?=\()/g,
-      '<span class="token-function">$1</span>');
+  const escape = s =>
+    s.replace(/&/g, "&amp;")
+     .replace(/</g, "&lt;")
+     .replace(/>/g, "&gt;");
+
+  const patterns = [
+    { type: "comment", regex: /#.*$/gm },
+    { type: "string", regex: /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\n]*"|'[^'\n]*')/g },
+    { type: "number", regex: /\b\d+(\.\d+)?\b/g },
+    { type: "keyword", regex: /\b(import|from|as|def|return|if|elif|else|for|while|break|continue|try|except|finally|with|lambda|class|pass|yield|in|is|and|or|not|None|True|False|await|async)\b/g },
+    { type: "builtin", regex: /\b(print|len|range|input|int|float|str|list|dict|set|tuple|open|type|dir|help|max|min|sum|map|filter|zip|enumerate|abs|round)\b/g },
+    { type: "function", regex: /\b([a-zA-Z_]\w*)(?=\()/g }
+  ];
+
+  let tokens = [{ text: code, html: escape(code) }];
+
+  for (const { type, regex } of patterns) {
+    const next = [];
+
+    for (const token of tokens) {
+      if (token.skip) {
+        next.push(token);
+        continue;
+      }
+
+      let last = 0;
+      let m;
+
+      while ((m = regex.exec(token.text))) {
+        const before = token.text.slice(last, m.index);
+        if (before) next.push({ text: before, html: escape(before) });
+
+        const match = m[0];
+        next.push({
+          text: match,
+          html: `<span class="token-${type}">${escape(match)}</span>`,
+          skip: true
+        });
+
+        last = m.index + match.length;
+      }
+
+      const rest = token.text.slice(last);
+      if (rest) next.push({ text: rest, html: escape(rest) });
+    }
+
+    tokens = next;
+  }
+
+  return tokens.map(t => t.html).join("");
 }
 
 /* ================= TERMINAL ================= */
