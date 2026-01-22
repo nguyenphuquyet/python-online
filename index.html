@@ -25,13 +25,20 @@ textarea { overflow: hidden; }
 #overlay.hidden {
   pointer-events: none;
 }
-  
-  /* MOBILE KEYBOARD FIX */
-#inputBar {
-  position: relative;
-  z-index: 20;
-  transition: transform 0.2s ease;
+
+#terminal {
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
+
+/* ===== VS CODE STYLE TOKENS ===== */
+.token-keyword { color: #569CD6; }
+.token-string { color: #CE9178; }
+.token-number { color: #B5CEA8; }
+.token-comment { color: #6A9955; font-style: italic; }
+.token-builtin { color: #4EC9B0; }
+.token-function { color: #DCDCAA; }
 </style>
 </head>
 
@@ -39,43 +46,65 @@ textarea { overflow: hidden; }
 
 <div class="flex flex-col h-full">
 
-<!-- HEADER -->
-<div id="header" class="flex items-center justify-between px-4 py-2 border-b text-sm font-mono">
+<!-- ================= HEADER ================= -->
+<div id="header"
+     class="flex items-center justify-between px-4 py-2
+            border-b text-sm font-mono">
   <div>Python 3.11 — Browser REPL</div>
   <button id="settingsBtn">⚙️</button>
 </div>
 
-<!-- TERMINAL -->
-<div id="terminal" class="flex-1 overflow-y-auto px-4 py-3 font-mono text-base space-y-1"></div>
+<!-- ================= TERMINAL ================= -->
+<div id="terminal"
+     class="flex-1 overflow-y-auto px-4 py-3
+            font-mono text-base space-y-1"></div>
 
-<!-- INPUT BAR -->
-<div id="inputBar" class="border-t px-4 py-3" onclick="focusInput()">
+<!-- ================= INPUT BAR ================= -->
+<div id="inputBar"
+     class="border-t px-4 py-3"
+     onclick="focusInput()">
   <div class="flex items-end gap-2">
+
     <span id="prompt" class="select-none pt-[2px]">>>> </span>
-    <textarea id="input" rows="1"
-      class="flex-1 bg-transparent resize-none outline-none font-mono leading-[1.5rem] pt-[2px]"
+
+    <textarea
+      id="input"
+      rows="1"
+      class="flex-1 bg-transparent resize-none outline-none
+             font-mono leading-[1.5rem] pt-[2px]"
       placeholder="Nhập Python..."></textarea>
+
     <button id="runBtn"
-      class="self-end h-[1.5rem] px-3 rounded-md text-sm font-semibold active:scale-95 transition">
+            type="button"
+            class="self-end h-[1.5rem] px-3 rounded-md
+                   text-sm font-semibold active:scale-95 transition">
       ▶
     </button>
+
   </div>
 </div>
 
 </div>
 
-<div id="overlay" class="fixed inset-0 z-40 hidden"></div>
+<!-- ================= OVERLAY ================= -->
+<div id="overlay"
+     class="fixed inset-0 z-40 hidden"></div>
 
-<!-- SIDEBAR -->
+<!-- ================= SIDEBAR ================= -->
 <aside id="sidebar"
-  class="fixed top-0 right-0 h-full w-72 translate-x-full transition-transform z-50 flex flex-col">
+       class="fixed top-0 right-0 h-full w-72
+              translate-x-full transition-transform
+              z-50 flex flex-col">
+
   <div id="sidebarHeader"
-    class="flex items-center justify-between px-4 py-3 border-b text-sm">
+       class="flex items-center justify-between px-4 py-3
+              border-b text-sm">
     <div>⚙️ Cài đặt</div>
     <button id="closeSidebar">✕</button>
   </div>
 
   <div id="sidebarBody" class="p-4 space-y-4 text-sm">
+
     <div>
       <div class="mb-2 font-medium">Theme</div>
       <div class="grid grid-cols-2 gap-2">
@@ -89,11 +118,12 @@ textarea { overflow: hidden; }
     <div id="credit" class="text-xs border-t pt-3">
       Phát triển bởi Nguyễn Phú Quyết
     </div>
+
   </div>
 </aside>
 
 <script>
-/* ELEMENTS */
+/* ================= ELEMENTS ================= */
 const terminal = document.getElementById("terminal");
 const input = document.getElementById("input");
 const runBtn = document.getElementById("runBtn");
@@ -104,46 +134,93 @@ const header = document.getElementById("header");
 const settingsBtn = document.getElementById("settingsBtn");
 const sidebar = document.getElementById("sidebar");
 const sidebarHeader = document.getElementById("sidebarHeader");
+const sidebarBody = document.getElementById("sidebarBody");
 const overlay = document.getElementById("overlay");
 const closeSidebar = document.getElementById("closeSidebar");
 const credit = document.getElementById("credit");
 const themeButtons = document.querySelectorAll(".themeBtn");
 
-/* FOCUS FIX */
+/* ================= FOCUS FIX ================= */
 function focusInput() {
   input.focus({ preventScroll: true });
 }
 
-/* TERMINAL */
-function printLine(text, type="output") {
+/* ================= 🚀 ULTRA SMOOTH SCROLL ENGINE ================= */
+let scrollRAF = null;
+let wantsSmooth = false;
+
+function scheduleScroll(smooth = false) {
+  wantsSmooth = smooth;
+  if (scrollRAF) return;
+
+  scrollRAF = requestAnimationFrame(() => {
+    terminal.scrollTo({
+      top: terminal.scrollHeight,
+      behavior: wantsSmooth ? "smooth" : "auto"
+    });
+    scrollRAF = null;
+  });
+}
+
+/* ================= PYTHON SYNTAX HIGHLIGHT ================= */
+function highlightPython(code) {
+  return code
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // comments
+    .replace(/(#.*?$)/gm, '<span class="token-comment">$1</span>')
+    // strings
+    .replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\n]*"|'[^'\n]*')/g,
+      '<span class="token-string">$1</span>')
+    // numbers
+    .replace(/\b(\d+(\.\d+)?)\b/g, '<span class="token-number">$1</span>')
+    // keywords
+    .replace(/\b(import|from|as|def|return|if|elif|else|for|while|break|continue|try|except|finally|with|lambda|class|pass|yield|in|is|and|or|not|None|True|False|await|async)\b/g,
+      '<span class="token-keyword">$1</span>')
+    // builtins
+    .replace(/\b(print|len|range|input|int|float|str|list|dict|set|tuple|open|type|dir|help|max|min|sum|map|filter|zip|enumerate|abs|round)\b/g,
+      '<span class="token-builtin">$1</span>')
+    // function calls
+    .replace(/\b([a-zA-Z_]\w*)(?=\()/g,
+      '<span class="token-function">$1</span>');
+}
+
+/* ================= TERMINAL ================= */
+function printLine(text, type="output", highlight=false) {
   const div = document.createElement("div");
   div.className =
     type === "error"
       ? "text-red-500 whitespace-pre-wrap break-words"
       : "whitespace-pre-wrap break-words";
-  div.textContent = text;
+
+  if (highlight) {
+    div.innerHTML = highlightPython(text);
+  } else {
+    div.textContent = text;
+  }
+
   terminal.appendChild(div);
-  terminal.scrollTop = terminal.scrollHeight;
+  scheduleScroll(false);
 }
 
-/* AUTO RESIZE */
+/* ================= AUTO RESIZE ================= */
 function autoResize() {
   input.style.height = "1.5rem";
   input.style.height = input.scrollHeight + "px";
 }
 input.addEventListener("input", autoResize);
 
-/* PYODIDE */
+/* ================= PYODIDE ================= */
 let pyodide;
 async function start() {
   printLine("Đang tải Python...");
   pyodide = await loadPyodide();
 
-  // stdout / stderr
   pyodide.setStdout({ batched: s => s.trim() && printLine(s) });
   pyodide.setStderr({ batched: s => s.trim() && printLine(s, "error") });
 
-  // 🔑 POPUP INPUT
+  // ✅ FIX: input() popup
   pyodide.globals.set("input", (msg = "") => {
     const r = prompt(msg || "Nhập dữ liệu:");
     if (r === null) throw new Error("Input cancelled");
@@ -156,16 +233,32 @@ async function start() {
 }
 start();
 
-/* RUN CODE */
+/* ================= RUN CODE ================= */
+function hideKeyboardHard() {
+  input.blur();
+  setTimeout(() => {
+    const tmp = document.createElement("input");
+    tmp.style.position = "fixed";
+    tmp.style.opacity = "0";
+    tmp.style.height = "0";
+    document.body.appendChild(tmp);
+    tmp.focus();
+    tmp.blur();
+    tmp.remove();
+  }, 0);
+}
+
 async function runCode() {
   const code = input.value;
   if (!code.trim()) return;
 
-  input.blur();
-  printLine(">>> " + code);
+  hideKeyboardHard();
+  await new Promise(r => setTimeout(r, 80));
 
+  printLine(">>> " + code, "output", true);
   input.value = "";
   autoResize();
+  scheduleScroll(true);
 
   try {
     const r = await pyodide.runPythonAsync(code);
@@ -173,10 +266,25 @@ async function runCode() {
   } catch (e) {
     printLine(e.toString(), "error");
   }
-}
-runBtn.onclick = runCode;
 
-/* SIDEBAR */
+  scheduleScroll(true);
+}
+
+/* iOS requires pointerdown */
+runBtn.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  runCode();
+});
+
+/* ================= KEYBOARD SHORTCUTS ================= */
+input.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+/* ================= SIDEBAR ================= */
 settingsBtn.onclick = () => {
   sidebar.classList.remove("translate-x-full");
   overlay.classList.remove("hidden");
@@ -187,7 +295,7 @@ closeSidebar.onclick = overlay.onclick = () => {
   overlay.classList.add("hidden");
 };
 
-/* THEMES */
+/* ================= THEMES ================= */
 const themes = {
   hacker: {
     body: "bg-black text-green-400",
@@ -236,23 +344,35 @@ function applyTheme(name) {
   if (!t) return;
 
   document.body.className = `h-[100dvh] overflow-hidden ${t.body}`;
-  header.className = `flex items-center justify-between px-4 py-2 border-b text-sm font-mono ${t.border}`;
+  header.className =
+    `flex items-center justify-between px-4 py-2 border-b text-sm font-mono ${t.border}`;
+
   inputBar.className = `border-t px-4 py-3 ${t.inputBar}`;
   promptEl.className = `${t.prompt} select-none pt-[2px]`;
+
   input.className =
-    `flex-1 bg-transparent resize-none outline-none font-mono leading-[1.5rem] pt-[2px] ${t.input}`;
+    `flex-1 bg-transparent resize-none outline-none
+     font-mono leading-[1.5rem] pt-[2px] ${t.input}`;
+
   runBtn.className =
-    `self-end h-[1.5rem] px-3 rounded-md text-sm font-semibold active:scale-95 transition ${t.button}`;
+    `self-end h-[1.5rem] px-3 rounded-md
+     text-sm font-semibold active:scale-95 transition ${t.button}`;
+
   sidebar.className =
-    `fixed top-0 right-0 h-full w-72 translate-x-full transition-transform z-50 flex flex-col ${t.sidebar}`;
+    `fixed top-0 right-0 h-full w-72 translate-x-full
+     transition-transform z-50 flex flex-col ${t.sidebar}`;
+
   sidebarHeader.className =
     `flex items-center justify-between px-4 py-3 border-b text-sm ${t.border}`;
+
   credit.className = `text-xs border-t pt-3 ${t.border}`;
+
   overlay.className = `fixed inset-0 z-40 hidden ${t.overlay}`;
 
   themeButtons.forEach(btn =>
     btn.classList.toggle("theme-active", btn.dataset.theme === name)
   );
+
   localStorage.setItem("theme", name);
 }
 
@@ -263,36 +383,84 @@ themeButtons.forEach(btn =>
 applyTheme(localStorage.getItem("theme") || "hacker");
 </script>
 
-  
-  <script>
-  /* KEYBOARD AWARE INPUT BAR (MOBILE FIX) */
-function updateForKeyboard() {
+<!-- ================= IN-APP BROWSER WARNING ================= -->
+<div id="inAppWarning"
+     class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+  <div class="max-w-sm w-[90%] rounded-xl p-5 text-center bg-neutral-900 text-white">
+    <div class="text-lg font-semibold mb-2">⚠️ Trình duyệt không hỗ trợ</div>
+    <div class="text-sm text-neutral-300 mb-4">
+      Trang này không hoạt động đúng trong trình duyệt tích hợp
+      (Messenger / Facebook / Zalo…).
+      <br><br>
+      Vui lòng mở bằng trình duyệt ngoài để sử dụng đầy đủ.
+    </div>
+
+    <button id="openExternal"
+            class="w-full py-2 rounded-lg font-semibold bg-green-500 text-black active:scale-95 transition">
+      🌐 Mở bằng trình duyệt ngoài
+    </button>
+  </div>
+</div>
+
+<script>
+/* ================= IN-APP BROWSER DETECT ================= */
+(function () {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const isInApp =
+    /FBAN|FBAV|Instagram|Messenger|Zalo|Line|TikTok|Twitter/i.test(ua);
+
+  if (!isInApp) return;
+
+  const warning = document.getElementById("inAppWarning");
+  const openBtn = document.getElementById("openExternal");
+
+  warning.classList.remove("hidden");
+
+  openBtn.onclick = () => {
+    const url = location.href;
+    if (/Android/i.test(ua)) {
+      window.location.href =
+        "intent://" +
+        url.replace(/^https?:\/\//, "") +
+        "#Intent;scheme=https;package=com.android.chrome;end";
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+})();
+</script>
+
+<script>
+/* ================= MOBILE KEYBOARD FIX ================= */
+(function () {
   if (!window.visualViewport) return;
 
   const vv = window.visualViewport;
-  const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+  const baseHeight = window.innerHeight;
 
-  if (keyboardHeight > 0) {
-    inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
-  } else {
-    inputBar.style.transform = "";
+  function updateInputPosition() {
+    const keyboardHeight = baseHeight - vv.height - vv.offsetTop;
+    if (keyboardHeight > 80) {
+      inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
+    } else {
+      inputBar.style.transform = "";
+    }
   }
-}
 
-// khi viewport thay đổi (bật/tắt bàn phím)
-if (window.visualViewport) {
-  visualViewport.addEventListener("resize", updateForKeyboard);
-  visualViewport.addEventListener("scroll", updateForKeyboard);
-}
+  vv.addEventListener("resize", updateInputPosition);
+  vv.addEventListener("scroll", updateInputPosition);
 
-// khi focus / blur input
-input.addEventListener("focus", () => {
-  setTimeout(updateForKeyboard, 50);
-});
-input.addEventListener("blur", () => {
-  inputBar.style.transform = "";
-});
-  </script>
-  
+  input.addEventListener("focus", () => {
+    setTimeout(updateInputPosition, 50);
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      inputBar.style.transform = "";
+    }, 100);
+  });
+})();
+</script>
+
 </body>
 </html>
