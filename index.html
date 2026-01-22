@@ -25,6 +25,13 @@ textarea { overflow: hidden; }
 #overlay.hidden {
   pointer-events: none;
 }
+  
+  /* MOBILE KEYBOARD FIX */
+#inputBar {
+  position: relative;
+  z-index: 20;
+  transition: transform 0.2s ease;
+}
 </style>
 </head>
 
@@ -256,5 +263,36 @@ themeButtons.forEach(btn =>
 applyTheme(localStorage.getItem("theme") || "hacker");
 </script>
 
+  
+  <script>
+  /* KEYBOARD AWARE INPUT BAR (MOBILE FIX) */
+function updateForKeyboard() {
+  if (!window.visualViewport) return;
+
+  const vv = window.visualViewport;
+  const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+
+  if (keyboardHeight > 0) {
+    inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
+  } else {
+    inputBar.style.transform = "";
+  }
+}
+
+// khi viewport thay đổi (bật/tắt bàn phím)
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", updateForKeyboard);
+  visualViewport.addEventListener("scroll", updateForKeyboard);
+}
+
+// khi focus / blur input
+input.addEventListener("focus", () => {
+  setTimeout(updateForKeyboard, 50);
+});
+input.addEventListener("blur", () => {
+  inputBar.style.transform = "";
+});
+  </script>
+  
 </body>
 </html>
