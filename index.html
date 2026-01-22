@@ -170,6 +170,9 @@ async function runCode() {
   const code = input.value;
   if (!code.trim()) return;
 
+  // 🔑 TẮT BÀN PHÍM NGAY KHI BẤM RUN
+  input.blur();
+
   printLine(">>> " + code);
   input.value = "";
   autoResize();
@@ -181,7 +184,8 @@ async function runCode() {
     printLine(e.toString(), "error");
   }
 
-  setTimeout(focusInput, 0);
+  // ❌ bỏ focus lại nếu không muốn bàn phím bật lên
+  // setTimeout(focusInput, 0);
 }
 runBtn.onclick = runCode;
 
