@@ -10,7 +10,6 @@
 <meta property="og:description" content="Chạy code python online không cần cài app">
 <meta property="og:image" content="https://i.ibb.co/mCY28Dxr/Zp-Bxd-R5-Le-NNTx-Et-H-ZDIw-ODc5-ZDQt-Nm-Nl-NC00-Nj-Vm-LTg0-Zm-Qt-ZDBj-N2-Iz-YTEx-OTVl-oxylabs-images-05.webp">
 
-
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
@@ -18,15 +17,19 @@
 html, body { height: 100%; }
 textarea { overflow: hidden; }
 
-/* active theme button */
 .theme-active {
   outline: 2px solid #22c55e;
   outline-offset: 2px;
 }
 
-/* bảo hiểm: overlay ẩn thì không chặn click */
 #overlay.hidden {
   pointer-events: none;
+}
+
+#terminal {
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 </style>
 </head>
@@ -40,7 +43,7 @@ textarea { overflow: hidden; }
      class="flex items-center justify-between px-4 py-2
             border-b text-sm font-mono">
   <div>Python 3.11 — Browser REPL</div>
-  <button id="settingsBtn">⚙️</button>
+  <button id="settingsBtn">⚙️ Cài đặt</button>
 </div>
 
 <!-- ================= TERMINAL ================= -->
@@ -50,8 +53,7 @@ textarea { overflow: hidden; }
 
 <!-- ================= INPUT BAR ================= -->
 <div id="inputBar"
-     class="border-t px-4 py-3"
-     onclick="focusInput()">
+     class="border-t px-4 py-3 select-none">
   <div class="flex items-end gap-2">
 
     <span id="prompt" class="select-none pt-[2px]">>>> </span>
@@ -64,6 +66,7 @@ textarea { overflow: hidden; }
       placeholder="Nhập Python..."></textarea>
 
     <button id="runBtn"
+            type="button"
             class="self-end h-[1.5rem] px-3 rounded-md
                    text-sm font-semibold active:scale-95 transition">
       ▶
@@ -128,9 +131,20 @@ const closeSidebar = document.getElementById("closeSidebar");
 const credit = document.getElementById("credit");
 const themeButtons = document.querySelectorAll(".themeBtn");
 
-/* ================= FOCUS FIX (MOBILE) ================= */
-function focusInput() {
-  input.focus({ preventScroll: true });
+/* ================= 🚀 SMOOTH SCROLL ================= */
+let scrollRAF = null;
+let wantsSmooth = false;
+
+function scheduleScroll(smooth = false) {
+  wantsSmooth = smooth;
+  if (scrollRAF) return;
+  scrollRAF = requestAnimationFrame(() => {
+    terminal.scrollTo({
+      top: terminal.scrollHeight,
+      behavior: wantsSmooth ? "smooth" : "auto"
+    });
+    scrollRAF = null;
+  });
 }
 
 /* ================= TERMINAL ================= */
@@ -142,7 +156,7 @@ function printLine(text, type="output") {
       : "whitespace-pre-wrap break-words";
   div.textContent = text;
   terminal.appendChild(div);
-  terminal.scrollTop = terminal.scrollHeight;
+  scheduleScroll(false);
 }
 
 /* ================= AUTO RESIZE ================= */
@@ -161,21 +175,45 @@ async function start() {
   pyodide.setStderr({ batched: s => s.trim() && printLine(s, "error") });
   terminal.innerHTML = "";
   printLine("Python 3.11 (Pyodide)");
-  setTimeout(focusInput, 300);
 }
 start();
 
-/* ================= RUN CODE ================= */
-async function runCode() {
-  const code = input.value;
-  if (!code.trim()) return;
+/* ================= 🔥 RUN — KEYBOARD TẮT & KHÔNG BẬT LẠI ================= */
+let running = false;
+let blockFocus = false;
 
-  // 🔑 TẮT BÀN PHÍM NGAY KHI BẤM RUN
+function hardBlur() {
   input.blur();
+
+  // iOS fallback
+  const tmp = document.createElement("input");
+  tmp.style.position = "fixed";
+  tmp.style.opacity = "0";
+  tmp.style.height = "0";
+  document.body.appendChild(tmp);
+  tmp.focus();
+  tmp.blur();
+  tmp.remove();
+}
+
+async function runCode() {
+  if (running) return;
+  running = true;
+  blockFocus = true;
+
+  const code = input.value;
+  if (!code.trim()) {
+    running = false;
+    blockFocus = false;
+    return;
+  }
+
+  hardBlur(); // ⬅️ tắt bàn phím chắc chắn
 
   printLine(">>> " + code);
   input.value = "";
   autoResize();
+  scheduleScroll(true);
 
   try {
     const r = await pyodide.runPythonAsync(code);
@@ -184,10 +222,36 @@ async function runCode() {
     printLine(e.toString(), "error");
   }
 
-  // ❌ bỏ focus lại nếu không muốn bàn phím bật lên
-  // setTimeout(focusInput, 0);
+  scheduleScroll(true);
+
+  // mở lại focus sau khi mọi thứ ổn định
+  setTimeout(() => {
+    running = false;
+    blockFocus = false;
+  }, 200);
 }
-runBtn.onclick = runCode;
+
+/* 🔒 CHẶN AUTO FOCUS */
+document.addEventListener("focusin", e => {
+  if (blockFocus && e.target === input) {
+    e.stopPropagation();
+    input.blur();
+  }
+});
+
+/* iOS needs pointerdown */
+runBtn.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  runCode();
+});
+
+/* ================= KEYBOARD SHORTCUTS ================= */
+input.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    runCode();
+  }
+});
 
 /* ================= SIDEBAR ================= */
 settingsBtn.onclick = () => {
@@ -272,7 +336,6 @@ function applyTheme(name) {
 
   credit.className = `text-xs border-t pt-3 ${t.border}`;
 
-  /* 🔑 QUAN TRỌNG: overlay LUÔN giữ hidden */
   overlay.className = `fixed inset-0 z-40 hidden ${t.overlay}`;
 
   themeButtons.forEach(btn =>
@@ -289,7 +352,347 @@ themeButtons.forEach(btn =>
 applyTheme(localStorage.getItem("theme") || "hacker");
 </script>
 
-  <!-- ================= IN-APP BROWSER WARNING ================= -->
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>NGUYENPHUQUYET - PYTHON ONLINE</title>
+
+<meta name="description" content="Chạy code python online không cần cài app">
+<meta property="og:title" content="NGUYENPHUQUYET - PYTHON ONLINE">
+<meta property="og:description" content="Chạy code python online không cần cài app">
+<meta property="og:image" content="https://i.ibb.co/mCY28Dxr/Zp-Bxd-R5-Le-NNTx-Et-H-ZDIw-ODc5-ZDQt-Nm-Nl-NC00-Nj-Vm-LTg0-Zm-Qt-ZDBj-N2-Iz-YTEx-OTVl-oxylabs-images-05.webp">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+
+<style>
+html, body { height: 100%; }
+textarea { overflow: hidden; }
+
+.theme-active {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+}
+
+#overlay.hidden {
+  pointer-events: none;
+}
+
+#terminal {
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+</style>
+</head>
+
+<body class="h-[100dvh] overflow-hidden bg-black text-green-400">
+
+<div class="flex flex-col h-full">
+
+<!-- ================= HEADER ================= -->
+<div id="header"
+     class="flex items-center justify-between px-4 py-2
+            border-b text-sm font-mono">
+  <div>Python 3.11 — Browser REPL</div>
+  <button id="settingsBtn">⚙️</button>
+</div>
+
+<!-- ================= TERMINAL ================= -->
+<div id="terminal"
+     class="flex-1 overflow-y-auto px-4 py-3
+            font-mono text-base space-y-1"></div>
+
+<!-- ================= INPUT BAR ================= -->
+<div id="inputBar"
+     class="border-t px-4 py-3"
+     onclick="focusInput()">
+  <div class="flex items-end gap-2">
+
+    <span id="prompt" class="select-none pt-[2px]">>>> </span>
+
+    <textarea
+      id="input"
+      rows="1"
+      class="flex-1 bg-transparent resize-none outline-none
+             font-mono leading-[1.5rem] pt-[2px]"
+      placeholder="Nhập Python..."></textarea>
+
+    <button id="runBtn"
+            type="button"
+            class="self-end h-[1.5rem] px-3 rounded-md
+                   text-sm font-semibold active:scale-95 transition">
+      ▶
+    </button>
+
+  </div>
+</div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="overlay"
+     class="fixed inset-0 z-40 hidden"></div>
+
+<!-- ================= SIDEBAR ================= -->
+<aside id="sidebar"
+       class="fixed top-0 right-0 h-full w-72
+              translate-x-full transition-transform
+              z-50 flex flex-col">
+
+  <div id="sidebarHeader"
+       class="flex items-center justify-between px-4 py-3
+              border-b text-sm">
+    <div>⚙️ Cài đặt</div>
+    <button id="closeSidebar">✕</button>
+  </div>
+
+  <div id="sidebarBody" class="p-4 space-y-4 text-sm">
+
+    <div>
+      <div class="mb-2 font-medium">Theme</div>
+      <div class="grid grid-cols-2 gap-2">
+        <button data-theme="hacker" class="themeBtn px-3 py-2 rounded">Hacker</button>
+        <button data-theme="dark" class="themeBtn px-3 py-2 rounded">Dark</button>
+        <button data-theme="light" class="themeBtn px-3 py-2 rounded">Light</button>
+        <button data-theme="midnight" class="themeBtn px-3 py-2 rounded">Midnight</button>
+      </div>
+    </div>
+
+    <div id="credit" class="text-xs border-t pt-3">
+      Phát triển bởi Nguyễn Phú Quyết
+    </div>
+
+  </div>
+</aside>
+
+<script>
+/* ================= ELEMENTS ================= */
+const terminal = document.getElementById("terminal");
+const input = document.getElementById("input");
+const runBtn = document.getElementById("runBtn");
+const inputBar = document.getElementById("inputBar");
+const promptEl = document.getElementById("prompt");
+const header = document.getElementById("header");
+
+const settingsBtn = document.getElementById("settingsBtn");
+const sidebar = document.getElementById("sidebar");
+const sidebarHeader = document.getElementById("sidebarHeader");
+const sidebarBody = document.getElementById("sidebarBody");
+const overlay = document.getElementById("overlay");
+const closeSidebar = document.getElementById("closeSidebar");
+const credit = document.getElementById("credit");
+const themeButtons = document.querySelectorAll(".themeBtn");
+
+/* ================= FOCUS FIX ================= */
+function focusInput() {
+  input.focus({ preventScroll: true });
+}
+
+/* ================= 🚀 ULTRA SMOOTH SCROLL ENGINE ================= */
+let scrollRAF = null;
+let wantsSmooth = false;
+
+function scheduleScroll(smooth = false) {
+  wantsSmooth = smooth;
+  if (scrollRAF) return;
+
+  scrollRAF = requestAnimationFrame(() => {
+    terminal.scrollTo({
+      top: terminal.scrollHeight,
+      behavior: wantsSmooth ? "smooth" : "auto"
+    });
+    scrollRAF = null;
+  });
+}
+
+/* ================= TERMINAL ================= */
+function printLine(text, type="output") {
+  const div = document.createElement("div");
+  div.className =
+    type === "error"
+      ? "text-red-500 whitespace-pre-wrap break-words"
+      : "whitespace-pre-wrap break-words";
+  div.textContent = text;
+  terminal.appendChild(div);
+  scheduleScroll(false);
+}
+
+/* ================= AUTO RESIZE ================= */
+function autoResize() {
+  input.style.height = "1.5rem";
+  input.style.height = input.scrollHeight + "px";
+}
+input.addEventListener("input", autoResize);
+
+/* ================= PYODIDE ================= */
+let pyodide;
+async function start() {
+  printLine("Đang tải Python...");
+  pyodide = await loadPyodide();
+  pyodide.setStdout({ batched: s => s.trim() && printLine(s) });
+  pyodide.setStderr({ batched: s => s.trim() && printLine(s, "error") });
+  terminal.innerHTML = "";
+  printLine("Python 3.11 (Pyodide)");
+  setTimeout(focusInput, 300);
+}
+start();
+
+/* ================= RUN CODE ================= */
+function hideKeyboardHard() {
+  input.blur();
+  setTimeout(() => {
+    const tmp = document.createElement("input");
+    tmp.style.position = "fixed";
+    tmp.style.opacity = "0";
+    tmp.style.height = "0";
+    document.body.appendChild(tmp);
+    tmp.focus();
+    tmp.blur();
+    tmp.remove();
+  }, 0);
+}
+
+async function runCode() {
+  const code = input.value;
+  if (!code.trim()) return;
+
+  hideKeyboardHard();
+  await new Promise(r => setTimeout(r, 80));
+
+  printLine(">>> " + code);
+  input.value = "";
+  autoResize();
+  scheduleScroll(true);
+
+  try {
+    const r = await pyodide.runPythonAsync(code);
+    if (r !== undefined) printLine(String(r));
+  } catch (e) {
+    printLine(e.toString(), "error");
+  }
+
+  scheduleScroll(true);
+}
+
+/* iOS requires pointerdown */
+runBtn.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  runCode();
+});
+
+/* ================= KEYBOARD SHORTCUTS ================= */
+input.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+/* ================= SIDEBAR ================= */
+settingsBtn.onclick = () => {
+  sidebar.classList.remove("translate-x-full");
+  overlay.classList.remove("hidden");
+};
+
+closeSidebar.onclick = overlay.onclick = () => {
+  sidebar.classList.add("translate-x-full");
+  overlay.classList.add("hidden");
+};
+
+/* ================= THEMES ================= */
+const themes = {
+  hacker: {
+    body: "bg-black text-green-400",
+    border: "border-green-700",
+    inputBar: "bg-black border-green-700",
+    prompt: "text-green-400",
+    input: "text-green-400 placeholder-green-600",
+    button: "bg-green-600 text-black hover:bg-green-500",
+    sidebar: "bg-black text-green-400",
+    overlay: "bg-black/50"
+  },
+  dark: {
+    body: "bg-black text-gray-100",
+    border: "border-gray-800",
+    inputBar: "bg-black border-gray-800",
+    prompt: "text-blue-400",
+    input: "text-gray-100 placeholder-gray-500",
+    button: "bg-blue-600 text-white hover:bg-blue-500",
+    sidebar: "bg-black text-gray-100",
+    overlay: "bg-black/60"
+  },
+  light: {
+    body: "bg-gray-100 text-gray-900",
+    border: "border-gray-300",
+    inputBar: "bg-white border-gray-300",
+    prompt: "text-blue-600",
+    input: "text-gray-900 placeholder-gray-400",
+    button: "bg-blue-600 text-white hover:bg-blue-500",
+    sidebar: "bg-white text-gray-900",
+    overlay: "bg-black/30"
+  },
+  midnight: {
+    body: "bg-slate-950 text-slate-100",
+    border: "border-slate-800",
+    inputBar: "bg-slate-950 border-slate-800",
+    prompt: "text-cyan-400",
+    input: "text-slate-100 placeholder-slate-500",
+    button: "bg-cyan-600 text-black hover:bg-cyan-500",
+    sidebar: "bg-slate-950 text-slate-100",
+    overlay: "bg-black/70"
+  }
+};
+
+function applyTheme(name) {
+  const t = themes[name];
+  if (!t) return;
+
+  document.body.className = `h-[100dvh] overflow-hidden ${t.body}`;
+  header.className =
+    `flex items-center justify-between px-4 py-2 border-b text-sm font-mono ${t.border}`;
+
+  inputBar.className = `border-t px-4 py-3 ${t.inputBar}`;
+  promptEl.className = `${t.prompt} select-none pt-[2px]`;
+
+  input.className =
+    `flex-1 bg-transparent resize-none outline-none
+     font-mono leading-[1.5rem] pt-[2px] ${t.input}`;
+
+  runBtn.className =
+    `self-end h-[1.5rem] px-3 rounded-md
+     text-sm font-semibold active:scale-95 transition ${t.button}`;
+
+  sidebar.className =
+    `fixed top-0 right-0 h-full w-72 translate-x-full
+     transition-transform z-50 flex flex-col ${t.sidebar}`;
+
+  sidebarHeader.className =
+    `flex items-center justify-between px-4 py-3 border-b text-sm ${t.border}`;
+
+  credit.className = `text-xs border-t pt-3 ${t.border}`;
+
+  overlay.className = `fixed inset-0 z-40 hidden ${t.overlay}`;
+
+  themeButtons.forEach(btn =>
+    btn.classList.toggle("theme-active", btn.dataset.theme === name)
+  );
+
+  localStorage.setItem("theme", name);
+}
+
+themeButtons.forEach(btn =>
+  btn.onclick = () => applyTheme(btn.dataset.theme)
+);
+
+applyTheme(localStorage.getItem("theme") || "hacker");
+</script>
+
+<!-- ================= IN-APP BROWSER WARNING ================= -->
 <div id="inAppWarning"
      class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
   <div class="max-w-sm w-[90%] rounded-xl p-5 text-center bg-neutral-900 text-white">
@@ -307,12 +710,11 @@ applyTheme(localStorage.getItem("theme") || "hacker");
     </button>
   </div>
 </div>
- 
-  <script>
+
+<script>
 /* ================= IN-APP BROWSER DETECT ================= */
 (function () {
   const ua = navigator.userAgent || navigator.vendor || window.opera;
-
   const isInApp =
     /FBAN|FBAV|Instagram|Messenger|Zalo|Line|TikTok|Twitter/i.test(ua);
 
@@ -325,22 +727,19 @@ applyTheme(localStorage.getItem("theme") || "hacker");
 
   openBtn.onclick = () => {
     const url = location.href;
-
-    // Android
     if (/Android/i.test(ua)) {
       window.location.href =
         "intent://" +
         url.replace(/^https?:\/\//, "") +
         "#Intent;scheme=https;package=com.android.chrome;end";
     } else {
-      // iOS & khác
       window.open(url, "_blank");
     }
   };
 })();
 </script>
-  
-  <script>
+
+<script>
 /* ================= MOBILE KEYBOARD FIX ================= */
 (function () {
   if (!window.visualViewport) return;
@@ -350,12 +749,9 @@ applyTheme(localStorage.getItem("theme") || "hacker");
 
   function updateInputPosition() {
     const keyboardHeight = baseHeight - vv.height - vv.offsetTop;
-
     if (keyboardHeight > 80) {
-      // Bàn phím đang mở
       inputBar.style.transform = `translateY(-${keyboardHeight}px)`;
     } else {
-      // Bàn phím đóng
       inputBar.style.transform = "";
     }
   }
@@ -374,6 +770,6 @@ applyTheme(localStorage.getItem("theme") || "hacker");
   });
 })();
 </script>
-  
+
 </body>
 </html>
